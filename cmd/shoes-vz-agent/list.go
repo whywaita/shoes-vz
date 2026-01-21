@@ -32,8 +32,12 @@ func runListCommand() {
 
 	// Print VMs in a table format
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "RUNNER ID\tIP ADDRESS\tSTATE\tCREATED AT\tUPDATED AT\tBUNDLE PATH")
-	fmt.Fprintln(w, "---------\t----------\t-----\t----------\t----------\t-----------")
+	if _, err := fmt.Fprintln(w, "RUNNER ID\tIP ADDRESS\tSTATE\tCREATED AT\tUPDATED AT\tBUNDLE PATH"); err != nil {
+		log.Fatalf("Failed to write header: %v", err)
+	}
+	if _, err := fmt.Fprintln(w, "---------\t----------\t-----\t----------\t----------\t-----------"); err != nil {
+		log.Fatalf("Failed to write separator: %v", err)
+	}
 
 	for _, v := range vms {
 		ipAddr := v.IPAddress
@@ -51,15 +55,19 @@ func runListCommand() {
 			updatedAt = "<not set>"
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			v.RunnerID,
 			ipAddr,
 			state,
 			v.CreatedAt,
 			updatedAt,
 			v.BundlePath,
-		)
+		); err != nil {
+			log.Fatalf("Failed to write VM info: %v", err)
+		}
 	}
 
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		log.Fatalf("Failed to flush output: %v", err)
+	}
 }

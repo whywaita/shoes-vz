@@ -31,11 +31,19 @@ func TestLoadConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
 			if tt.envValue != "" {
-				os.Setenv(EnvShoesVzServerAddr, tt.envValue)
+				if err := os.Setenv(EnvShoesVzServerAddr, tt.envValue); err != nil {
+					t.Fatalf("Failed to set env: %v", err)
+				}
 			} else {
-				os.Unsetenv(EnvShoesVzServerAddr)
+				if err := os.Unsetenv(EnvShoesVzServerAddr); err != nil {
+					t.Fatalf("Failed to unset env: %v", err)
+				}
 			}
-			defer os.Unsetenv(EnvShoesVzServerAddr)
+			defer func() {
+				if err := os.Unsetenv(EnvShoesVzServerAddr); err != nil {
+					t.Logf("Failed to unset env: %v", err)
+				}
+			}()
 
 			// Execute
 			config, err := LoadConfig()

@@ -156,7 +156,9 @@ func (s *Server) handleIPNotification(w http.ResponseWriter, r *http.Request) {
 				select {
 				case req.Ch <- IPInfo{IPAddress: notification.IPAddress, UUID: notification.RunnerID}:
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+					if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+						logger.Error("Failed to encode response", "error", err)
+					}
 					return
 				default:
 					logger.Warn("Channel full or closed", "runner_id", runnerID)
@@ -179,7 +181,9 @@ func (s *Server) handleIPNotification(w http.ResponseWriter, r *http.Request) {
 	select {
 	case req.Ch <- IPInfo{IPAddress: notification.IPAddress, UUID: notification.RunnerID}:
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+			logger.Error("Failed to encode response", "error", err)
+		}
 	default:
 		logger.Error("Channel full or closed", "runner_id", req.RunnerID)
 		http.Error(w, "Internal error", http.StatusInternalServerError)

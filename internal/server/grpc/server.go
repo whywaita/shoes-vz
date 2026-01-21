@@ -233,7 +233,9 @@ func (s *Server) Sync(stream agentv1.AgentService_SyncServer) error {
 			if agentID != "" {
 				s.logger.Info("Agent stream closed", "agent_id", agentID, "error", err)
 				s.removeAgentStream(agentID)
-				s.store.UpdateAgentStatus(agentID, agentv1.AgentStatus_AGENT_STATUS_OFFLINE)
+				if updateErr := s.store.UpdateAgentStatus(agentID, agentv1.AgentStatus_AGENT_STATUS_OFFLINE); updateErr != nil {
+					s.logger.Error("Failed to update agent status", "agent_id", agentID, "error", updateErr)
+				}
 			}
 			return err
 		}
@@ -246,7 +248,9 @@ func (s *Server) Sync(stream agentv1.AgentService_SyncServer) error {
 		}
 
 		// Update agent status
-		s.store.UpdateAgentStatus(agentID, agentv1.AgentStatus_AGENT_STATUS_ONLINE)
+		if err := s.store.UpdateAgentStatus(agentID, agentv1.AgentStatus_AGENT_STATUS_ONLINE); err != nil {
+			s.logger.Error("Failed to update agent status", "agent_id", agentID, "error", err)
+		}
 
 		// Update runners
 		if err := s.store.UpdateAgentRunners(agentID, req.Runners); err != nil {
@@ -394,7 +398,9 @@ func (s *Server) cleanupErrorRunners() {
 							"error", err,
 						)
 						// If we can't find the agent, just remove from store
-						s.store.DeleteRunner(runner.RunnerId)
+						if delErr := s.store.DeleteRunner(runner.RunnerId); delErr != nil {
+							s.logger.Error("Failed to delete runner", "runner_id", runner.RunnerId, "error", delErr)
+						}
 						continue
 					}
 

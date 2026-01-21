@@ -65,7 +65,9 @@ func (m *vzManager) GetMonitorStatus(ctx context.Context, runnerID string) (*Mon
 	if err != nil {
 		return nil, fmt.Errorf("failed to send HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP request failed with status %d", resp.StatusCode)

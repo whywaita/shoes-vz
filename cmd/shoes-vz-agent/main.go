@@ -169,7 +169,11 @@ func runAgentCommand() {
 		logger.Error("Failed to connect to server", "error", err)
 		os.Exit(1)
 	}
-	defer syncClient.Close()
+	defer func() {
+		if err := syncClient.Close(); err != nil {
+			logger.Error("Failed to close sync client", "error", err)
+		}
+	}()
 
 	// Start sync loop
 	go func() {

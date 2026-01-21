@@ -26,7 +26,9 @@ func TestNotifyIP(t *testing.T) {
 
 		receivedNotification <- notification
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+			t.Logf("Failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 

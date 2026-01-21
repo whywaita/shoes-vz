@@ -62,9 +62,10 @@ func (c *Collector) collectRunnerMetrics() {
 		stateCounts[runner.State]++
 
 		// Count idle/busy runners
-		if runner.GuestRunnerState == agentv1.GuestRunnerState_GUEST_RUNNER_STATE_IDLE {
+		switch runner.GuestRunnerState {
+		case agentv1.GuestRunnerState_GUEST_RUNNER_STATE_IDLE:
 			idleCount++
-		} else if runner.GuestRunnerState == agentv1.GuestRunnerState_GUEST_RUNNER_STATE_RUNNING {
+		case agentv1.GuestRunnerState_GUEST_RUNNER_STATE_RUNNING:
 			busyCount++
 		}
 

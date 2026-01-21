@@ -230,46 +230,62 @@ func (c *Client) createRunnerAsync(ctx context.Context, runnerID, runnerName, se
 	logger := logging.FromContext(ctx, c.logger)
 
 	// Update state: CREATING
-	c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_CREATING)
+	if err := c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_CREATING); err != nil {
+		logger.Error("Failed to update state to CREATING", "runner_id", runnerID, "error", err)
+	}
 
 	// Create VM
 	vmInfo, err := c.vmManager.Create(ctx, runnerID)
 	if err != nil {
 		logger.Error("VM creation failed", "runner_id", runnerID, "error", err)
-		c.runnerManager.SetError(runnerID, fmt.Sprintf("VM creation failed: %v", err))
+		if setErr := c.runnerManager.SetError(runnerID, fmt.Sprintf("VM creation failed: %v", err)); setErr != nil {
+			logger.Error("Failed to set error", "runner_id", runnerID, "error", setErr)
+		}
 		return
 	}
 
 	// Update state: BOOTING
-	c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_BOOTING)
+	if err := c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_BOOTING); err != nil {
+		logger.Error("Failed to update state to BOOTING", "runner_id", runnerID, "error", err)
+	}
 
 	// Start VM
 	if err := c.vmManager.Start(ctx, runnerID); err != nil {
 		logger.Error("VM start failed", "runner_id", runnerID, "error", err)
-		c.runnerManager.SetError(runnerID, fmt.Sprintf("VM start failed: %v", err))
+		if setErr := c.runnerManager.SetError(runnerID, fmt.Sprintf("VM start failed: %v", err)); setErr != nil {
+			logger.Error("Failed to set error", "runner_id", runnerID, "error", setErr)
+		}
 		return
 	}
 
 	// Wait for SSH
 	if err := c.vmManager.WaitForSSH(ctx, runnerID); err != nil {
 		logger.Error("SSH wait failed", "runner_id", runnerID, "error", err)
-		c.runnerManager.SetError(runnerID, fmt.Sprintf("SSH wait failed: %v", err))
+		if setErr := c.runnerManager.SetError(runnerID, fmt.Sprintf("SSH wait failed: %v", err)); setErr != nil {
+			logger.Error("Failed to set error", "runner_id", runnerID, "error", setErr)
+		}
 		return
 	}
 
 	// Update state: SSH_READY
-	c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_SSH_READY)
+	if err := c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_SSH_READY); err != nil {
+		logger.Error("Failed to update state to SSH_READY", "runner_id", runnerID, "error", err)
+	}
 	logger.Info("Runner SSH ready", "runner_id", runnerID)
 
 	// Run setup script
 	if err := c.vmManager.RunSetupScript(ctx, runnerID, setupScript); err != nil {
 		logger.Error("Setup script failed", "runner_id", runnerID, "error", err)
-		c.runnerManager.SetError(runnerID, fmt.Sprintf("Setup script failed: %v", err))
+		if setErr := c.runnerManager.SetError(runnerID, fmt.Sprintf("Setup script failed: %v", err)); setErr != nil {
+			logger.Error("Failed to set error", "runner_id", runnerID, "error", setErr)
+		}
 		return
 	}
 
 	// Update state: RUNNING
-	c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_RUNNING)
+	if err := c.runnerManager.UpdateState(runnerID, agentv1.RunnerState_RUNNER_STATE_RUNNING); err != nil {
+		logger.Error("Failed to update state to RUNNING", "runner_id", runnerID, "error", err)
+	}
 
 	// Update IP address
 	if runner, err := c.runnerManager.Get(runnerID); err == nil {
@@ -291,7 +307,9 @@ func (c *Client) handleDeleteRunner(ctx context.Context, cmd *agentv1.DeleteRunn
 	logger.Info("Deleting runner", "runner_id", cmd.RunnerId)
 
 	// Update state: TEARING_DOWN
-	c.runnerManager.UpdateState(cmd.RunnerId, agentv1.RunnerState_RUNNER_STATE_TEARING_DOWN)
+	if err := c.runnerManager.UpdateState(cmd.RunnerId, agentv1.RunnerState_RUNNER_STATE_TEARING_DOWN); err != nil {
+		logger.Error("Failed to update state to TEARING_DOWN", "runner_id", cmd.RunnerId, "error", err)
+	}
 
 	// Stop VM
 	if err := c.vmManager.Stop(ctx, cmd.RunnerId); err != nil {

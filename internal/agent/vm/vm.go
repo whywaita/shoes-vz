@@ -151,7 +151,9 @@ func (m *vzManager) Start(ctx context.Context, runnerID string) error {
 	// Load bundle config
 	bundleConfig, err := LoadBundleConfig(bundlePath)
 	if err != nil {
-		m.UpdateState(runnerID, "error")
+		if updateErr := m.UpdateState(runnerID, "error"); updateErr != nil {
+			logger.Warn("Failed to update state to error", "runner_id", runnerID, "error", updateErr)
+		}
 		return fmt.Errorf("failed to load bundle config: %w", err)
 	}
 
@@ -353,6 +355,8 @@ func (m *vzManager) createVMConfig(bundleConfig *BundleConfig) (*vz.VirtualMachi
 
 // Stop stops the VM
 func (m *vzManager) Stop(ctx context.Context, runnerID string) error {
+	logger := logging.WithComponent("vm")
+
 	m.mu.RLock()
 	vm, exists := m.vms[runnerID]
 	m.mu.RUnlock()
@@ -371,7 +375,9 @@ func (m *vzManager) Stop(ctx context.Context, runnerID string) error {
 					m.mu.Lock()
 					delete(m.vms, runnerID)
 					m.mu.Unlock()
-					m.UpdateState(runnerID, "stopped")
+					if err := m.UpdateState(runnerID, "stopped"); err != nil {
+						logger.Warn("Failed to update state to stopped", "runner_id", runnerID, "error", err)
+					}
 					return nil
 				}
 				time.Sleep(1 * time.Second)
@@ -389,7 +395,9 @@ func (m *vzManager) Stop(ctx context.Context, runnerID string) error {
 	m.mu.Unlock()
 
 	// Update state to stopped
-	m.UpdateState(runnerID, "stopped")
+	if err := m.UpdateState(runnerID, "stopped"); err != nil {
+		logger.Warn("Failed to update state to stopped", "runner_id", runnerID, "error", err)
+	}
 
 	return nil
 }

@@ -46,7 +46,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
-	defer shoesClient.Close()
+	defer func() {
+		if err := shoesClient.Close(); err != nil {
+			log.Printf("Failed to close client: %v", err)
+		}
+	}()
 
 	// Serve the plugin
 	plugin.Serve(&plugin.ServeConfig{

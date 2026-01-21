@@ -57,7 +57,7 @@ func NotifyIP(ctx context.Context, runnerID, hostIP string, agentPort int) error
 				continue
 			}
 
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			if resp.StatusCode == http.StatusOK {
 				return nil

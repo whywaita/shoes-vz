@@ -30,7 +30,11 @@ func TestServer_WaitForIP(t *testing.T) {
 	if err := server.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	defer server.Stop(context.Background())
+	defer func() {
+		if err := server.Stop(context.Background()); err != nil {
+			t.Logf("Stop() error = %v", err)
+		}
+	}()
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
@@ -53,7 +57,11 @@ func TestServer_WaitForIP(t *testing.T) {
 			t.Errorf("Failed to send notification: %v", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Failed to close response body: %v", err)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -80,7 +88,11 @@ func TestServer_WaitForIPTimeout(t *testing.T) {
 	if err := server.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	defer server.Stop(context.Background())
+	defer func() {
+		if err := server.Stop(context.Background()); err != nil {
+			t.Logf("Stop() error = %v", err)
+		}
+	}()
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
@@ -98,7 +110,11 @@ func TestServer_HandleIPNotification_InvalidMethod(t *testing.T) {
 	if err := server.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	defer server.Stop(context.Background())
+	defer func() {
+		if err := server.Stop(context.Background()); err != nil {
+			t.Logf("Stop() error = %v", err)
+		}
+	}()
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
@@ -107,7 +123,11 @@ func TestServer_HandleIPNotification_InvalidMethod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to send request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("Expected status 405, got %d", resp.StatusCode)
@@ -120,7 +140,11 @@ func TestServer_HandleIPNotification_InvalidJSON(t *testing.T) {
 	if err := server.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	defer server.Stop(context.Background())
+	defer func() {
+		if err := server.Stop(context.Background()); err != nil {
+			t.Logf("Stop() error = %v", err)
+		}
+	}()
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
@@ -129,7 +153,11 @@ func TestServer_HandleIPNotification_InvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to send request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", resp.StatusCode)
@@ -142,7 +170,11 @@ func TestServer_HandleIPNotification_MissingFields(t *testing.T) {
 	if err := server.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	defer server.Stop(context.Background())
+	defer func() {
+		if err := server.Stop(context.Background()); err != nil {
+			t.Logf("Stop() error = %v", err)
+		}
+	}()
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
@@ -172,7 +204,11 @@ func TestServer_HandleIPNotification_MissingFields(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to send request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Logf("Failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Errorf("Expected status 400, got %d", resp.StatusCode)
