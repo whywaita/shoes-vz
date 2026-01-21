@@ -1,0 +1,23 @@
+version: 2
+
+run:
+  timeout: 5m
+  tests: true
+  build-tags:
+    - darwin
+
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
