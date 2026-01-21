@@ -34,12 +34,11 @@ jobs:
       - name: generate
         run: |
           make generate
-      - name: Install golangci-lint
-        run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - name: lint
-        run: |
-          make lint
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
       - name: vet
         run: |
           go vet ./...
