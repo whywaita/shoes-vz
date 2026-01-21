@@ -308,6 +308,324 @@ Start:
 launchctl load ~/Library/LaunchAgents/com.github.whywaita.shoes-vz-agent.plist
 ```
 
+## Agent Provisioning
+
+This section describes automated provisioning methods for deploying shoes-vz-agent to multiple macOS hosts.
+
+### Download from GitHub Releases
+
+Binaries are available from GitHub Releases:
+
+```bash
+# Set version
+VERSION=v0.1.0
+
+# Download binary
+curl -L -o shoes-vz-agent.tar.gz \
+  "https://github.com/whywaita/shoes-vz/releases/download/${VERSION}/shoes-vz_Darwin_arm64.tar.gz"
+
+# Extract
+tar xzf shoes-vz-agent.tar.gz
+
+# Install
+sudo mkdir -p /opt/shoes-vz/bin
+sudo mv shoes-vz-agent /opt/shoes-vz/bin/
+sudo chmod +x /opt/shoes-vz/bin/shoes-vz-agent
+```
+
+### Automated Setup Script
+
+Create a provisioning script for automated deployment:
+
+**`setup-agent.sh`:**
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Configuration
+VERSION="${VERSION:-v0.1.0}"
+SERVER_ADDR="${SERVER_ADDR:-server.example.com:50051}"
+MAX_RUNNERS="${MAX_RUNNERS:-2}"
+TEMPLATE_PATH="${TEMPLATE_PATH:-/opt/myshoes/vz/templates/macos-26}"
+RUNNERS_PATH="${RUNNERS_PATH:-/opt/myshoes/vz/runners}"
+INSTALL_DIR="/opt/shoes-vz"
+
+echo "Installing shoes-vz-agent ${VERSION}..."
+
+# Download binary
+curl -L -o /tmp/shoes-vz.tar.gz \
+  "https://github.com/whywaita/shoes-vz/releases/download/${VERSION}/shoes-vz_Darwin_arm64.tar.gz"
+
+# Extract and install
+mkdir -p "${INSTALL_DIR}/bin"
+tar xzf /tmp/shoes-vz.tar.gz -C /tmp
+mv /tmp/shoes-vz-agent "${INSTALL_DIR}/bin/"
+chmod +x "${INSTALL_DIR}/bin/shoes-vz-agent"
+rm /tmp/shoes-vz.tar.gz
+
+# Create directories
+mkdir -p "${TEMPLATE_PATH}"
+mkdir -p "${RUNNERS_PATH}"
+
+# Generate SSH key if not exists
+if [ ! -f ~/.ssh/shoes-vz-runner ]; then
+  echo "Generating SSH key..."
+  ssh-keygen -t ed25519 -f ~/.ssh/shoes-vz-runner -N ""
+fi
+
+# Create launchd plist
+PLIST_PATH="${HOME}/Library/LaunchAgents/com.github.whywaita.shoes-vz-agent.plist"
+cat > "${PLIST_PATH}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.whywaita.shoes-vz-agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${INSTALL_DIR}/bin/shoes-vz-agent</string>
+        <string>-server</string>
+        <string>${SERVER_ADDR}</string>
+        <string>-hostname</string>
+        <string>$(hostname)</string>
+        <string>-max-runners</string>
+        <string>${MAX_RUNNERS}</string>
+        <string>-template-path</string>
+        <string>${TEMPLATE_PATH}</string>
+        <string>-runners-path</string>
+        <string>${RUNNERS_PATH}</string>
+        <string>-ssh-key</string>
+        <string>${HOME}/.ssh/shoes-vz-runner</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/shoes-vz-agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/shoes-vz-agent.error.log</string>
+</dict>
+</plist>
+EOF
+
+# Load launchd service
+launchctl unload "${PLIST_PATH}" 2>/dev/null || true
+launchctl load "${PLIST_PATH}"
+
+echo "Installation complete!"
+echo ""
+echo "SSH public key for template configuration:"
+cat ~/.ssh/shoes-vz-runner.pub
+echo ""
+echo "Check logs: tail -f /var/log/shoes-vz-agent.log"
+```
+
+Usage:
+
+```bash
+# Download and run
+curl -fsSL https://raw.githubusercontent.com/whywaita/shoes-vz/main/scripts/setup-agent.sh | \
+  VERSION=v0.1.0 \
+  SERVER_ADDR=server.example.com:50051 \
+  bash
+```
+
+### Remote Deployment with SSH
+
+Deploy to multiple hosts using SSH:
+
+```bash
+# hosts.txt
+mac-agent-1.example.com
+mac-agent-2.example.com
+mac-agent-3.example.com
+```
+
+**`deploy-agents.sh`:**
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+HOSTS_FILE="hosts.txt"
+VERSION="v0.1.0"
+SERVER_ADDR="server.example.com:50051"
+
+while IFS= read -r host; do
+  echo "Deploying to ${host}..."
+
+  ssh "${host}" "bash -s" < setup-agent.sh <<-ENV
+VERSION=${VERSION}
+SERVER_ADDR=${SERVER_ADDR}
+ENV
+
+  echo "Deployed to ${host}"
+done < "${HOSTS_FILE}"
+
+echo "All deployments complete!"
+```
+
+### Using Ansible
+
+Create an Ansible playbook for agent deployment:
+
+**`playbook.yml`:**
+
+```yaml
+---
+- name: Deploy shoes-vz-agent
+  hosts: mac_agents
+  vars:
+    shoes_vz_version: "v0.1.0"
+    shoes_vz_server: "server.example.com:50051"
+    shoes_vz_max_runners: 2
+    shoes_vz_install_dir: "/opt/shoes-vz"
+    shoes_vz_template_path: "/opt/myshoes/vz/templates/macos-26"
+    shoes_vz_runners_path: "/opt/myshoes/vz/runners"
+
+  tasks:
+    - name: Create installation directory
+      file:
+        path: "{{ shoes_vz_install_dir }}/bin"
+        state: directory
+        mode: '0755'
+      become: yes
+
+    - name: Download shoes-vz binary
+      get_url:
+        url: "https://github.com/whywaita/shoes-vz/releases/download/{{ shoes_vz_version }}/shoes-vz_Darwin_arm64.tar.gz"
+        dest: "/tmp/shoes-vz.tar.gz"
+
+    - name: Extract binary
+      unarchive:
+        src: "/tmp/shoes-vz.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Install binary
+      copy:
+        src: "/tmp/shoes-vz-agent"
+        dest: "{{ shoes_vz_install_dir }}/bin/shoes-vz-agent"
+        mode: '0755'
+        remote_src: yes
+      become: yes
+
+    - name: Create template directory
+      file:
+        path: "{{ shoes_vz_template_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create runners directory
+      file:
+        path: "{{ shoes_vz_runners_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Generate SSH key
+      openssh_keypair:
+        path: "{{ ansible_env.HOME }}/.ssh/shoes-vz-runner"
+        type: ed25519
+        comment: "shoes-vz-runner"
+
+    - name: Deploy launchd plist
+      template:
+        src: templates/shoes-vz-agent.plist.j2
+        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.github.whywaita.shoes-vz-agent.plist"
+
+    - name: Load launchd service
+      shell: |
+        launchctl unload {{ ansible_env.HOME }}/Library/LaunchAgents/com.github.whywaita.shoes-vz-agent.plist || true
+        launchctl load {{ ansible_env.HOME }}/Library/LaunchAgents/com.github.whywaita.shoes-vz-agent.plist
+```
+
+**`templates/shoes-vz-agent.plist.j2`:**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.whywaita.shoes-vz-agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{ shoes_vz_install_dir }}/bin/shoes-vz-agent</string>
+        <string>-server</string>
+        <string>{{ shoes_vz_server }}</string>
+        <string>-hostname</string>
+        <string>{{ ansible_hostname }}</string>
+        <string>-max-runners</string>
+        <string>{{ shoes_vz_max_runners }}</string>
+        <string>-template-path</string>
+        <string>{{ shoes_vz_template_path }}</string>
+        <string>-runners-path</string>
+        <string>{{ shoes_vz_runners_path }}</string>
+        <string>-ssh-key</string>
+        <string>{{ ansible_env.HOME }}/.ssh/shoes-vz-runner</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/shoes-vz-agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/shoes-vz-agent.error.log</string>
+</dict>
+</plist>
+```
+
+Run:
+
+```bash
+ansible-playbook -i inventory.ini playbook.yml
+```
+
+### Server Deployment with Docker
+
+For shoes-vz-server, use Docker:
+
+```bash
+# Pull image
+docker pull ghcr.io/whywaita/shoes-vz-server:latest
+
+# Run server
+docker run -d \
+  --name shoes-vz-server \
+  -p 50051:50051 \
+  -p 9090:9090 \
+  ghcr.io/whywaita/shoes-vz-server:latest
+```
+
+**`docker-compose.yml`:**
+
+```yaml
+version: '3.8'
+
+services:
+  shoes-vz-server:
+    image: ghcr.io/whywaita/shoes-vz-server:latest
+    ports:
+      - "50051:50051"
+      - "9090:9090"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "grpcurl", "-plaintext", "localhost:50051", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+Run:
+
+```bash
+docker-compose up -d
+```
+
 ## Verification
 
 ### 1. Check Server Logs
