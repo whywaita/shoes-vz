@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package shoes.vz.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/whywaita/shoes-vz/gen/go/shoes/vz/agent/v1;agentv1";
+
+// AgentService provides bidirectional communication between agents and the server.
+// Agents report their status and receive commands from the server.
+service AgentService {
+  // RegisterAgent is called when an agent starts up.
+  // It provides the server with the agent's capabilities and receives configuration.
+  rpc RegisterAgent(RegisterAgentRequest) returns (RegisterAgentResponse);
+
+  // Sync establishes a bidirectional stream for agent-server communication.
+  // The agent periodically sends status updates (every 5s by default).
+  // The server sends commands (create/delete runner) when needed.
+  // The agent also sends immediate updates when runner state changes.
+  rpc Sync(stream SyncRequest) returns (stream SyncResponse);
+}
+
+// Agent represents an agent instance running on a macOS host.
+message Agent {
+  // agent_id is the unique identifier assigned by the server.
+  string agent_id = 1;
+
+  // hostname is the hostname of the macOS host.
+  string hostname = 2;
+
+  // capacity describes the agent's resource limits.
+  AgentCapacity capacity = 3;
+
+  // status indicates whether the agent is online or offline.
+  AgentStatus status = 4;
+}
+
+// AgentCapacity describes the maximum resources an agent can provide.
+message AgentCapacity {
+  // max_runners is the maximum number of concurrent runners this agent can handle.
+  uint32 max_runners = 1;
+
+  // cpu_cores is the number of CPU cores available on the host.
+  uint32 cpu_cores = 2;
+
+  // memory_bytes is the total memory available on the host.
+  uint64 memory_bytes = 3;
+}
+
+// AgentStatus indicates the agent's availability.
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_ONLINE = 1;   // Agent is connected and accepting work
+  AGENT_STATUS_OFFLINE = 2;  // Agent is disconnected or unavailable
+}
+
+// Runner represents a single runner instance managed by an agent.
+message Runner {
+  // runner_id is the unique identifier for this runner.
+  string runner_id = 1;
+
+  // runner_name is the GitHub Actions runner name.
+  string runner_name = 2;
+
+  // agent_id is the ID of the agent managing this runner.
+  string agent_id = 3;
+
+  // state is the current lifecycle state of the runner.
+  RunnerState state = 4;
+
+  // ip_address is the connection string for the runner.
+  // For NAT networking: "127.0.0.1:PORT"
+  string ip_address = 5;
+
+  // created_at is when the runner was created.
+  google.protobuf.Timestamp created_at = 6;
+
+  // error_message contains error details if state is RUNNER_STATE_ERROR.
+  string error_message = 7;
+
+  // guest_runner_state is the state of the runner inside the guest VM.
+  // This is populated by querying shoes-vz-runner-agent.
+  GuestRunnerState guest_runner_state = 8;
+}
+
+// RunnerState represents the lifecycle state of a runner from the VM perspective.
+enum RunnerState {
+  RUNNER_STATE_UNSPECIFIED = 0;
+  RUNNER_STATE_CREATING = 1;      // Cloning template, creating VM
+  RUNNER_STATE_BOOTING = 2;       // VM is starting
+  RUNNER_STATE_SSH_READY = 3;     // SSH connection successful
+  RUNNER_STATE_RUNNING = 4;       // Runner is active
+  RUNNER_STATE_TEARING_DOWN = 5;  // VM is being destroyed
+  RUNNER_STATE_ERROR = 6;         // An error occurred
+}
+
+// GuestRunnerState represents the state of the GitHub Actions runner inside the VM.
+// This information comes from shoes-vz-runner-agent.
+enum GuestRunnerState {
+  GUEST_RUNNER_STATE_UNSPECIFIED = 0;
+  GUEST_RUNNER_STATE_OFFLINE = 1;    // Runner not started yet
+  GUEST_RUNNER_STATE_IDLE = 2;       // Runner waiting for jobs
+  GUEST_RUNNER_STATE_PREPARING = 3;  // Job received, preparing environment
+  GUEST_RUNNER_STATE_RUNNING = 4;    // Job is executing
+  GUEST_RUNNER_STATE_FINISHED = 5;   // Job completed
+}
+
+// RegisterAgentRequest is sent when an agent starts.
+message RegisterAgentRequest {
+  // hostname is the hostname of the macOS host.
+  string hostname = 1;
+
+  // capacity describes the agent's resource limits.
+  AgentCapacity capacity = 2;
+}
+
+// RegisterAgentResponse contains the agent's assigned ID and configuration.
+message RegisterAgentResponse {
+  // agent_id is the unique identifier assigned to this agent.
+  string agent_id = 1;
+
+  // sync_interval_seconds is how often the agent should send status updates.
+  int32 sync_interval_seconds = 2;
+}
+
+// SyncRequest is sent by the agent to report status.
+message SyncRequest {
+  // agent_id identifies the agent sending this status.
+  string agent_id = 1;
+
+  // active_runners is the current number of runners on this agent.
+  uint32 active_runners = 2;
+
+  // runners contains the current state of all runners managed by this agent.
+  repeated Runner runners = 3;
+}
+
+// SyncResponse is sent by the server to command the agent.
+message SyncResponse {
+  oneof command {
+    CreateRunnerCommand create_runner = 1;
+    DeleteRunnerCommand delete_runner = 2;
+    NoopCommand noop = 3;
+  }
+}
+
+// CreateRunnerCommand instructs the agent to create a new runner.
+message CreateRunnerCommand {
+  // runner_id is the unique identifier for the new runner.
+  string runner_id = 1;
+
+  // runner_name is the GitHub Actions runner name to use.
+  string runner_name = 2;
+
+  // setup_script is the script to run after SSH is ready.
+  string setup_script = 3;
+
+  // request_id is the trace ID for this operation.
+  string request_id = 4;
+}
+
+// DeleteRunnerCommand instructs the agent to delete a runner.
+message DeleteRunnerCommand {
+  // runner_id identifies the runner to delete.
+  string runner_id = 1;
+
+  // request_id is the trace ID for this operation.
+  string request_id = 2;
+}
+
+// NoopCommand indicates no action is needed.
+message NoopCommand {}

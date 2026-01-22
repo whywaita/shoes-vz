@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package shoes.vz.shoes.v1;
+
+option go_package = "github.com/whywaita/shoes-vz/gen/go/shoes/vz/shoes/v1;shoesv1";
+
+// ShoesService provides the interface for myshoes integration.
+// It manages the lifecycle of GitHub Actions runners on macOS VMs.
+service ShoesService {
+  // AddInstance creates a new runner instance.
+  // This method will:
+  // 1. Select an appropriate agent based on capacity
+  // 2. Send a CreateRunner command to the agent
+  // 3. Wait for the runner to reach SSH_READY state
+  // 4. Return the connection information
+  rpc AddInstance(AddInstanceRequest) returns (AddInstanceResponse);
+
+  // DeleteInstance removes a runner instance.
+  // This method will:
+  // 1. Identify the agent managing the runner
+  // 2. Send a DeleteRunner command to the agent
+  // 3. Wait for the runner to be removed
+  rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse);
+}
+
+// AddInstanceRequest contains the information needed to create a new runner.
+message AddInstanceRequest {
+  // runner_name is the name to assign to the runner.
+  // This will be used as the GitHub Actions runner name.
+  string runner_name = 1;
+
+  // setup_script is a shell script to run after the VM is SSH-ready.
+  // This typically includes runner registration and configuration.
+  string setup_script = 2;
+
+  // resource_type specifies the VM resource configuration.
+  // Example: "small", "medium", "large"
+  string resource_type = 3;
+
+  // labels are the GitHub Actions labels to assign to the runner.
+  repeated string labels = 4;
+}
+
+// AddInstanceResponse contains the connection information for the created runner.
+message AddInstanceResponse {
+  // cloud_id is the unique identifier for this runner instance.
+  // This should be used when calling DeleteInstance.
+  string cloud_id = 1;
+
+  // shoes_type identifies the provider type.
+  // For shoes-vz, this will be "shoes-vz".
+  string shoes_type = 2;
+
+  // ip_address is the IP address or connection string for the runner.
+  // For NAT-based networking, this may be "127.0.0.1:PORT".
+  string ip_address = 3;
+}
+
+// DeleteInstanceRequest identifies the runner to delete.
+message DeleteInstanceRequest {
+  // cloud_id is the unique identifier returned by AddInstance.
+  string cloud_id = 1;
+}
+
+// DeleteInstanceResponse confirms the deletion.
+message DeleteInstanceResponse {}
