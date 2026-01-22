@@ -20,8 +20,8 @@ type Manager interface {
 	// Create creates a new VM by cloning the template
 	Create(ctx context.Context, runnerID string) (*VMInfo, error)
 
-	// Start starts the VM
-	Start(ctx context.Context, runnerID string) error
+	// Start starts the VM and returns the IP address
+	Start(ctx context.Context, runnerID string) (string, error)
 
 	// Stop stops the VM
 	Stop(ctx context.Context, runnerID string) error
@@ -136,8 +136,8 @@ func (m *vzManager) Create(ctx context.Context, runnerID string) (*VMInfo, error
 	}, nil
 }
 
-// Start starts the VM
-func (m *vzManager) Start(ctx context.Context, runnerID string) error {
+// Start starts the VM and returns the IP address
+func (m *vzManager) Start(ctx context.Context, runnerID string) (string, error) {
 	logger := logging.WithComponent("vm")
 
 	// Update state to booting
@@ -154,28 +154,28 @@ func (m *vzManager) Start(ctx context.Context, runnerID string) error {
 		if updateErr := m.UpdateState(runnerID, "error"); updateErr != nil {
 			logger.Warn("Failed to update state to error", "runner_id", runnerID, "error", updateErr)
 		}
-		return fmt.Errorf("failed to load bundle config: %w", err)
+		return "", fmt.Errorf("failed to load bundle config: %w", err)
 	}
 
 	// Create VM configuration
 	vmConfig, err := m.createVMConfig(bundleConfig)
 	if err != nil {
-		return fmt.Errorf("failed to create VM config: %w", err)
+		return "", fmt.Errorf("failed to create VM config: %w", err)
 	}
 
 	// Validate configuration
 	validated, err := vmConfig.Validate()
 	if err != nil {
-		return fmt.Errorf("VM config validation failed: %w", err)
+		return "", fmt.Errorf("VM config validation failed: %w", err)
 	}
 	if !validated {
-		return fmt.Errorf("VM config validation returned false")
+		return "", fmt.Errorf("VM config validation returned false")
 	}
 
 	// Create and start VM
 	vm, err := vz.NewVirtualMachine(vmConfig)
 	if err != nil {
-		return fmt.Errorf("failed to create VM: %w", err)
+		return "", fmt.Errorf("failed to create VM: %w", err)
 	}
 
 	// Store VM instance
@@ -186,7 +186,7 @@ func (m *vzManager) Start(ctx context.Context, runnerID string) error {
 	// Start VM
 	logger.Info("Starting VM", "runner_id", runnerID, "graphics_enabled", m.enableGraphics)
 	if err := vm.Start(); err != nil {
-		return fmt.Errorf("failed to start VM: %w", err)
+		return "", fmt.Errorf("failed to start VM: %w", err)
 	}
 
 	// Wait for VM to reach running state
@@ -199,14 +199,14 @@ func (m *vzManager) Start(ctx context.Context, runnerID string) error {
 		}
 		if state == vz.VirtualMachineStateError || state == vz.VirtualMachineStateStopped {
 			logger.Error("VM failed to start", "runner_id", runnerID, "state", state)
-			return fmt.Errorf("VM failed to start, state: %v", state)
+			return "", fmt.Errorf("VM failed to start, state: %v", state)
 		}
 		time.Sleep(1 * time.Second)
 	}
 
 	if vm.State() != vz.VirtualMachineStateRunning {
 		logger.Error("VM did not reach running state", "runner_id", runnerID, "state", vm.State())
-		return fmt.Errorf("VM did not reach running state, current state: %v", vm.State())
+		return "", fmt.Errorf("VM did not reach running state, current state: %v", vm.State())
 	}
 
 	logger.Info("VM is now running, waiting for IP notification", "runner_id", runnerID)
@@ -216,14 +216,14 @@ func (m *vzManager) Start(ctx context.Context, runnerID string) error {
 	// The IP notify server will match it to this runner ID using FIFO queue
 	ipAddress, err := m.ipNotifyServer.WaitForIP(ctx, runnerID, 2*time.Minute)
 	if err != nil {
-		return fmt.Errorf("failed to receive IP notification: %w", err)
+		return "", fmt.Errorf("failed to receive IP notification: %w", err)
 	}
 
 	logger.Info("Guest IP received via notification", "runner_id", runnerID, "ip_address", ipAddress)
 
 	// Update metadata with the discovered IP
 	if err := m.UpdateIPAddress(runnerID, ipAddress); err != nil {
-		return fmt.Errorf("failed to update IP address: %w", err)
+		return "", fmt.Errorf("failed to update IP address: %w", err)
 	}
 
 	// Update state to running
@@ -231,7 +231,7 @@ func (m *vzManager) Start(ctx context.Context, runnerID string) error {
 		logger.Warn("Failed to update state to running", "runner_id", runnerID, "error", err)
 	}
 
-	return nil
+	return ipAddress, nil
 }
 
 // createVMConfig creates a VM configuration

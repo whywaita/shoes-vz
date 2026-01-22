@@ -44,9 +44,10 @@ func runStartCommand() {
 	defer cancel()
 
 	fmt.Printf("Starting VM: %s\n", runnerID)
-	if err := vmManager.Start(ctx, runnerID); err != nil {
+	ipAddress, err := vmManager.Start(ctx, runnerID)
+	if err != nil {
 		log.Fatalf("Failed to start VM: %v", err)
 	}
 
-	fmt.Printf("Successfully started VM: %s\n", runnerID)
+	fmt.Printf("Successfully started VM: %s (IP: %s)\n", runnerID, ipAddress)
 }

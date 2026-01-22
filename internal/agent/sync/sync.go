@@ -235,7 +235,7 @@ func (c *Client) createRunnerAsync(ctx context.Context, runnerID, runnerName, se
 	}
 
 	// Create VM
-	vmInfo, err := c.vmManager.Create(ctx, runnerID)
+	_, err := c.vmManager.Create(ctx, runnerID)
 	if err != nil {
 		logger.Error("VM creation failed", "runner_id", runnerID, "error", err)
 		if setErr := c.runnerManager.SetError(runnerID, fmt.Sprintf("VM creation failed: %v", err)); setErr != nil {
@@ -250,12 +250,18 @@ func (c *Client) createRunnerAsync(ctx context.Context, runnerID, runnerName, se
 	}
 
 	// Start VM
-	if err := c.vmManager.Start(ctx, runnerID); err != nil {
+	ipAddress, err := c.vmManager.Start(ctx, runnerID)
+	if err != nil {
 		logger.Error("VM start failed", "runner_id", runnerID, "error", err)
 		if setErr := c.runnerManager.SetError(runnerID, fmt.Sprintf("VM start failed: %v", err)); setErr != nil {
 			logger.Error("Failed to set error", "runner_id", runnerID, "error", setErr)
 		}
 		return
+	}
+
+	// Update runner IP address
+	if runner, getErr := c.runnerManager.Get(runnerID); getErr == nil {
+		runner.IPAddress = ipAddress
 	}
 
 	// Wait for SSH
@@ -287,14 +293,9 @@ func (c *Client) createRunnerAsync(ctx context.Context, runnerID, runnerName, se
 		logger.Error("Failed to update state to RUNNING", "runner_id", runnerID, "error", err)
 	}
 
-	// Update IP address
-	if runner, err := c.runnerManager.Get(runnerID); err == nil {
-		runner.IPAddress = vmInfo.IPAddress
-	}
-
 	logger.Info("Runner is now running",
 		"runner_id", runnerID,
-		"ip_address", vmInfo.IPAddress,
+		"ip_address", ipAddress,
 	)
 }
 
