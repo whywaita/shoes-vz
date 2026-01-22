@@ -4,7 +4,8 @@ project_name: shoes-vz
 before:
   hooks:
     - go mod tidy
-    - buf generate
+    - make deps
+    - make generate
 
 builds:
   - id: shoes-vz-agent
