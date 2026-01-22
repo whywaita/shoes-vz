@@ -31,24 +31,6 @@ builds:
     ldflags:
       - -s -w
 
-dockers:
-  - image_templates:
-      - "ghcr.io/whywaita/shoes-vz-server:{{ .Tag }}"
-      - "ghcr.io/whywaita/shoes-vz-server:v{{ .Major }}"
-      - "ghcr.io/whywaita/shoes-vz-server:v{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/whywaita/shoes-vz-server:latest"
-    dockerfile: Dockerfile.server
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.description=shoes-vz-server"
-      - "--label=org.opencontainers.image.url=https://github.com/whywaita/shoes-vz"
-      - "--label=org.opencontainers.image.source=https://github.com/whywaita/shoes-vz"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.licenses=MIT"
-
 archives:
   - format: tar.gz
     name_template: >-
