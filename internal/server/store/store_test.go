@@ -192,3 +192,107 @@ func TestStore_HasCapacity_ExcludesErrorRunners(t *testing.T) {
 		t.Errorf("GetRunnerCount() = %v, want 1 (ERROR runner should be excluded)", count)
 	}
 }
+
+func TestStore_UpdateAgentRunners_RemovesStaleRunners(t *testing.T) {
+	s := NewStore()
+
+	agent := &agentv1.Agent{
+		AgentId:  "agent-1",
+		Hostname: "test-host",
+		Capacity: &agentv1.AgentCapacity{
+			MaxRunners: 4,
+		},
+		Status: agentv1.AgentStatus_AGENT_STATUS_ONLINE,
+	}
+
+	s.RegisterAgent(agent.AgentId, agent)
+
+	// Add initial runners
+	initialRunners := []*agentv1.Runner{
+		{
+			RunnerId: "runner-1",
+			AgentId:  agent.AgentId,
+			State:    agentv1.RunnerState_RUNNER_STATE_RUNNING,
+		},
+		{
+			RunnerId: "runner-2",
+			AgentId:  agent.AgentId,
+			State:    agentv1.RunnerState_RUNNER_STATE_RUNNING,
+		},
+		{
+			RunnerId: "runner-3",
+			AgentId:  agent.AgentId,
+			State:    agentv1.RunnerState_RUNNER_STATE_RUNNING,
+		},
+	}
+
+	if err := s.UpdateAgentRunners(agent.AgentId, initialRunners); err != nil {
+		t.Fatalf("UpdateAgentRunners() error = %v", err)
+	}
+
+	// Register cloud IDs for runners
+	s.RegisterCloudID("cloud-1", "runner-1")
+	s.RegisterCloudID("cloud-2", "runner-2")
+	s.RegisterCloudID("cloud-3", "runner-3")
+
+	// Verify all runners exist
+	if _, err := s.GetRunner("runner-1"); err != nil {
+		t.Errorf("GetRunner(runner-1) error = %v", err)
+	}
+	if _, err := s.GetRunner("runner-2"); err != nil {
+		t.Errorf("GetRunner(runner-2) error = %v", err)
+	}
+	if _, err := s.GetRunner("runner-3"); err != nil {
+		t.Errorf("GetRunner(runner-3) error = %v", err)
+	}
+
+	// Update with only runner-1 and runner-3 (runner-2 deleted)
+	updatedRunners := []*agentv1.Runner{
+		{
+			RunnerId: "runner-1",
+			AgentId:  agent.AgentId,
+			State:    agentv1.RunnerState_RUNNER_STATE_RUNNING,
+		},
+		{
+			RunnerId: "runner-3",
+			AgentId:  agent.AgentId,
+			State:    agentv1.RunnerState_RUNNER_STATE_RUNNING,
+		},
+	}
+
+	if err := s.UpdateAgentRunners(agent.AgentId, updatedRunners); err != nil {
+		t.Fatalf("UpdateAgentRunners() error = %v", err)
+	}
+
+	// Verify runner-1 and runner-3 still exist
+	if _, err := s.GetRunner("runner-1"); err != nil {
+		t.Errorf("GetRunner(runner-1) after update error = %v", err)
+	}
+	if _, err := s.GetRunner("runner-3"); err != nil {
+		t.Errorf("GetRunner(runner-3) after update error = %v", err)
+	}
+
+	// Verify runner-2 was removed
+	if _, err := s.GetRunner("runner-2"); err == nil {
+		t.Error("GetRunner(runner-2) should return error after removal, got nil")
+	}
+
+	// Verify cloud ID mapping for runner-2 was removed
+	if _, err := s.GetRunnerByCloudID("cloud-2"); err == nil {
+		t.Error("GetRunnerByCloudID(cloud-2) should return error after runner-2 removal, got nil")
+	}
+
+	// Verify cloud IDs for runner-1 and runner-3 still exist
+	if _, err := s.GetRunnerByCloudID("cloud-1"); err != nil {
+		t.Errorf("GetRunnerByCloudID(cloud-1) error = %v", err)
+	}
+	if _, err := s.GetRunnerByCloudID("cloud-3"); err != nil {
+		t.Errorf("GetRunnerByCloudID(cloud-3) error = %v", err)
+	}
+
+	// Verify runner count
+	count := s.GetRunnerCount(agent.AgentId)
+	if count != 2 {
+		t.Errorf("GetRunnerCount() = %v, want 2", count)
+	}
+}

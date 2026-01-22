@@ -88,6 +88,33 @@ func (s *Store) UpdateAgentRunners(agentID string, runners []*agentv1.Runner) er
 		return model.ErrAgentNotFound
 	}
 
+	// Build a set of runner IDs from the received list
+	receivedRunnerIDs := make(map[string]bool)
+	for _, r := range runners {
+		receivedRunnerIDs[r.RunnerId] = true
+	}
+
+	// Find runners that belong to this agent but are not in the received list
+	var runnersToDelete []string
+	for runnerID, aID := range s.runnerToAgent {
+		if aID == agentID && !receivedRunnerIDs[runnerID] {
+			runnersToDelete = append(runnersToDelete, runnerID)
+		}
+	}
+
+	// Delete stale runners
+	for _, runnerID := range runnersToDelete {
+		// Find and remove cloud ID mapping
+		for cloudID, rID := range s.cloudIDToRunner {
+			if rID == runnerID {
+				delete(s.cloudIDToRunner, cloudID)
+				break
+			}
+		}
+		delete(s.runners, runnerID)
+		delete(s.runnerToAgent, runnerID)
+	}
+
 	// Update runner information
 	for _, r := range runners {
 		s.runners[r.RunnerId] = r
