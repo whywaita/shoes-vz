@@ -11,7 +11,7 @@ builds:
     main: ./cmd/shoes-vz-agent
     binary: shoes-vz-agent
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - darwin
     goarch:
@@ -23,7 +23,7 @@ builds:
     main: ./cmd/shoes-vz-runner-agent
     binary: shoes-vz-runner-agent
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - darwin
     goarch:
