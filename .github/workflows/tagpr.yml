@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   tagpr:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     if: github.actor != 'github-actions[bot]'
     steps:
       - name: Generate token from GitHub App
