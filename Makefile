@@ -4,11 +4,11 @@ help: ## Show this help
 
 .PHONY: proto-lint
 proto-lint: ## Lint proto files
-	buf lint
+	go run github.com/bufbuild/buf/cmd/buf lint
 
 .PHONY: proto-breaking
 proto-breaking: ## Check for breaking changes in proto files
-	buf breaking --against '.git#branch=main'
+	go run github.com/bufbuild/buf/cmd/buf breaking --against '.git#branch=main'
 
 # Binary list
 BINARIES := bin/shoes-vz-server bin/shoes-vz-agent bin/shoes-vz-runner-agent bin/shoes-vz-client
@@ -22,7 +22,7 @@ GENERATED_SOURCES := $(wildcard gen/go/**/*.go)
 
 .PHONY: generate
 generate: ## Generate all code (proto, etc.)
-	buf generate
+	go run github.com/bufbuild/buf/cmd/buf generate
 
 # Ensure generated code exists before building
 .PHONY: ensure-generated
@@ -79,8 +79,8 @@ clean: ## Clean build artifacts
 
 .PHONY: deps
 deps: ## Install dependencies
-	go tool -n github.com/bufbuild/buf/cmd/buf
-	go tool -n google.golang.org/protobuf/cmd/protoc-gen-go
-	go tool -n google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	go install github.com/bufbuild/buf/cmd/buf
+	go install google.golang.org/protobuf/cmd/protoc-gen-go
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 .DEFAULT_GOAL := help

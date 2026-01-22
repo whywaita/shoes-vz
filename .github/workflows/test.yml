@@ -27,11 +27,9 @@ jobs:
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: 'go.mod'
-      - name: Install buf
+      - name: Install deps
         run: |
-          go tool -n github.com/bufbuild/buf/cmd/buf
-          go tool -n google.golang.org/protobuf/cmd/protoc-gen-go
-          go tool -n google.golang.org/grpc/cmd/protoc-gen-go-grpc
+          make deps
       - name: proto-lint
         run: |
           make proto-lint
@@ -66,9 +64,9 @@ jobs:
           go-version-file: 'go.mod'
       - name: Install buf
         run: |
-          go tool -n github.com/bufbuild/buf/cmd/buf
-          go tool -n google.golang.org/protobuf/cmd/protoc-gen-go
-          go tool -n google.golang.org/grpc/cmd/protoc-gen-go-grpc
+          go install github.com/bufbuild/buf/cmd/buf
+          go install google.golang.org/protobuf/cmd/protoc-gen-go
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
       - name: Generate files
         run: make generate
       - name: Run GoReleaser dry-run
