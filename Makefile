@@ -79,8 +79,8 @@ clean: ## Clean build artifacts
 
 .PHONY: deps
 deps: ## Install dependencies
-	go install github.com/bufbuild/buf/cmd/buf@latest
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	go tool -n github.com/bufbuild/buf/cmd/buf
+	go tool -n google.golang.org/protobuf/cmd/protoc-gen-go
+	go tool -n google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 .DEFAULT_GOAL := help
