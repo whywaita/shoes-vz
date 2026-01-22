@@ -32,18 +32,27 @@ builds:
     ldflags:
       - -s -w
 
+  - id: shoes-vz-client
+    main: ./cmd/shoes-vz-client
+    binary: shoes-vz-client
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w
+
 archives:
-  - formats: [tar.gz]
+  - format: binary
     name_template: >-
-      {{ .ProjectName }}_
+      {{ .Binary }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        formats: [zip]
 
 changelog:
   sort: asc
