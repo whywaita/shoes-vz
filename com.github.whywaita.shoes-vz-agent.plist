@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service label (must match filename) -->
+    <key>Label</key>
+    <string>com.github.whywaita.shoes-vz-agent</string>
+
+    <!-- Program to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/shoes-vz-agent</string>
+        <string>-server</string>
+        <string>localhost:50051</string>
+        <string>-max-runners</string>
+        <string>2</string>
+        <string>-template-path</string>
+        <string>/opt/myshoes/vz/templates/macos-26</string>
+        <string>-runners-path</string>
+        <string>/opt/myshoes/vz/runners</string>
+        <string>-ip-notify-port</string>
+        <string>8081</string>
+    </array>
+
+    <!-- Run at boot -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep alive and restart on exit -->
+    <key>KeepAlive</key>
+    <dict>
+        <!-- Restart if crashed -->
+        <key>Crashed</key>
+        <true/>
+        <!-- Restart if exited with error -->
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/var/lib/shoes-vz</string>
+
+    <!-- Standard output path -->
+    <key>StandardOutPath</key>
+    <string>/var/log/shoes-vz-agent.log</string>
+
+    <!-- Standard error path -->
+    <key>StandardErrorPath</key>
+    <string>/var/log/shoes-vz-agent-error.log</string>
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Process type (Adaptive = standard daemon) -->
+    <key>ProcessType</key>
+    <string>Adaptive</string>
+
+    <!-- Throttle restart interval (10 seconds) -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- Exit timeout (30 seconds) -->
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+
+    <!-- Hard resource limits -->
+    <key>HardResourceLimits</key>
+    <dict>
+        <!-- Max number of open files -->
+        <key>NumberOfFiles</key>
+        <integer>4096</integer>
+    </dict>
+
+    <!-- Soft resource limits -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>2048</integer>
+    </dict>
+
+    <!-- Nice level (0 = normal priority) -->
+    <key>Nice</key>
+    <integer>0</integer>
+
+    <!-- User to run as (default: root for LaunchDaemon) -->
+    <!-- <key>UserName</key> -->
+    <!-- <string>root</string> -->
+
+    <!-- Group to run as -->
+    <!-- <key>GroupName</key> -->
+    <!-- <string>wheel</string> -->
+
+    <!-- Umask -->
+    <key>Umask</key>
+    <integer>22</integer>
+
+    <!-- Enable debug logging -->
+    <key>Debug</key>
+    <false/>
+</dict>
+</plist>
