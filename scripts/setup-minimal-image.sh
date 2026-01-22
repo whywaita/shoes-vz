@@ -1,22 +1,22 @@
 #!/bin/bash
-# VM 内で実行するセットアップスクリプト
-# shoes-vz テスト用最小イメージ作成
+# Setup script to run inside the VM
+# Create minimal image for shoes-vz testing
 set -euo pipefail
 
 echo "=== Enabling SSH ==="
 sudo systemsetup -setremotelogin on
 
 echo "=== Creating runner user ==="
-# runnerユーザーが存在するかチェック
+# Check if runner user exists
 if id runner &>/dev/null; then
     echo "Runner user already exists, ensuring home directory is set up correctly..."
 else
-    # sysadminctl を使ってユーザー作成（macOS 10.10以降）
-    # -addUser: ユーザー名
-    # -fullName: フルネーム
-    # -password: パスワード（平文）
-    # -home: ホームディレクトリ（デフォルトは /Users/username）
-    # -admin: 管理者権限を付与
+    # Create user with sysadminctl (macOS 10.10 and later)
+    # -addUser: username
+    # -fullName: full name
+    # -password: password (plain text)
+    # -home: home directory (default is /Users/username)
+    # -admin: grant administrator privileges
     echo "Creating runner user with sysadminctl..."
     sudo sysadminctl -addUser runner \
       -fullName "GitHub Actions Runner" \
@@ -25,27 +25,27 @@ else
       -home /Users/runner
 fi
 
-# ホームディレクトリが存在しない場合は作成
+# Create home directory if it doesn't exist
 if [ ! -d /Users/runner ]; then
     echo "Creating home directory for runner user..."
     sudo mkdir -p /Users/runner
 fi
 
-# NFSHomeDirectoryが正しく設定されているか確認
+# Check if NFSHomeDirectory is correctly set
 CURRENT_HOME=$(sudo dscl . -read /Users/runner NFSHomeDirectory 2>/dev/null | awk '{print $2}')
 if [ "$CURRENT_HOME" != "/Users/runner" ]; then
     echo "Setting NFSHomeDirectory to /Users/runner..."
     sudo dscl . -create /Users/runner NFSHomeDirectory /Users/runner
 fi
 
-# パーミッション設定
+# Set permissions
 echo "Setting permissions for home directory..."
 sudo chown -R runner:staff /Users/runner
 sudo chmod 755 /Users/runner
 
 echo "Runner user setup completed successfully"
 
-# sudoers 設定（パスワードなしで sudo 可能にする）
+# Configure sudoers (allow sudo without password)
 echo "=== Configuring sudoers for runner user ==="
 echo "runner ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/runner
 sudo chmod 440 /etc/sudoers.d/runner
@@ -54,7 +54,7 @@ echo "=== Setting up SSH for runner user ==="
 sudo -u runner mkdir -p /Users/runner/.ssh
 sudo -u runner chmod 700 /Users/runner/.ssh
 
-# SSH キーがある場合は authorized_keys に追加
+# Add to authorized_keys if SSH key exists
 if [ -f /tmp/ssh_public_key ]; then
     sudo -u runner cp /tmp/ssh_public_key /Users/runner/.ssh/authorized_keys
     sudo -u runner chmod 600 /Users/runner/.ssh/authorized_keys
@@ -62,13 +62,13 @@ if [ -f /tmp/ssh_public_key ]; then
 fi
 
 echo "=== Installing Homebrew and basic tools as runner user ==="
-# Homebrew のインストールと基本ツールのインストール（runnerユーザで実行）
-# -H オプションで HOME 環境変数を runner のホームディレクトリに設定
+# Install Homebrew and basic tools (run as runner user)
+# -H option sets HOME environment variable to runner's home directory
 sudo -H -u runner bash << 'HOMEBREW_SCRIPT'
-# Homebrew のインストール（非対話的）
+# Install Homebrew (non-interactive)
 NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Homebrew の PATH 設定
+# Configure Homebrew PATH
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/runner/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
@@ -87,11 +87,11 @@ else
 fi
 
 echo "=== Setting up runner-monitor LaunchDaemon ==="
-# LaunchDaemonとして配置（ログイン不要でシステム起動時に実行）
+# Deploy as LaunchDaemon (runs at system boot without login)
 
-# plistファイルを作成
-# shoes-vz-runner-agentは起動時に.runnerファイルを監視し、
-# runner IDが見つかったら自動的にIP通知を行う
+# Create plist file
+# shoes-vz-runner-agent watches .runner file at boot time,
+# and automatically notifies IP when runner ID is found
 sudo tee /Library/LaunchDaemons/com.github.whywaita.shoes-vz-runner-agent.plist > /dev/null << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -133,18 +133,18 @@ echo "shoes-vz-runner-agent will start at boot time (no login required)"
 echo "It will run as 'runner' user and automatically watch for .runner file and notify IP when runner is registered"
 
 echo "=== Cleanup ==="
-# キャッシュ削除（エラーは無視）
+# Delete cache (ignore errors)
 sudo rm -rf /Library/Caches/* 2>/dev/null || true
 sudo rm -rf /Users/runner/Library/Caches/* 2>/dev/null || true
 
-# ログ削除（エラーは無視）
+# Delete logs (ignore errors)
 sudo rm -rf /var/log/* 2>/dev/null || true
 sudo rm -rf /Users/runner/Library/Logs/* 2>/dev/null || true
 
-# 履歴削除
+# Delete history
 sudo rm -f /Users/runner/.bash_history /Users/runner/.zsh_history
 
-# Spotlight 無効化（起動高速化）
+# Disable Spotlight (for faster startup)
 sudo mdutil -a -i off
 
 echo "=== Setup complete ==="
