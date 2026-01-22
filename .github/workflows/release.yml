@@ -23,9 +23,11 @@ jobs:
           go-version-file: 'go.mod'
       - name: Install buf
         run: |
-          go install github.com/bufbuild/buf/cmd/buf@latest
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+          go tool -n github.com/bufbuild/buf/cmd/buf
+          go tool -n google.golang.org/protobuf/cmd/protoc-gen-go
+          go tool -n google.golang.org/grpc/cmd/protoc-gen-go-grpc
+      - name: Generate code
+        run: make generate
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
