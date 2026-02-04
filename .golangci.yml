@@ -1,21 +1,31 @@
+version: "2"
 run:
-  timeout: 5m
-  tests: true
   build-tags:
     - darwin
-
+  tests: true
 linters:
-  enable:
-    - errcheck
-    - staticcheck
-    - unused
-    - ineffassign
-
-linters-settings:
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
