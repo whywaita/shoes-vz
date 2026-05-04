@@ -5,7 +5,7 @@ go 1.25.3
 require (
 	github.com/Code-Hex/vz/v3 v3.7.1
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/go-plugin v1.7.0
+	github.com/hashicorp/go-plugin v1.8.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/whywaita/myshoes v1.19.1
 	google.golang.org/grpc v1.79.1
